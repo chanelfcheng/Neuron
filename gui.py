@@ -12,7 +12,7 @@ WINDOW_WIDTH, WINDOW_HEIGHT = pygame.display.get_desktop_sizes()[0]
 CIRCLE_RADIUS = 70
 HI_LO_HEIGHT = 35
 NOTE_WIDTH = 118
-NOTE_HEIGHT = 5
+NOTE_HEIGHT = 4
 
 RED_HI_COLOR = pygame.Color(200, 0, 100)  # green
 RED_LO_COLOR = pygame.Color(200//2, 0, 100//2)  # green
@@ -236,6 +236,11 @@ class RhythmGame:
                         self.user_turn = False
                         self.green_note_counter = 0
 
+    def draw_dashed_line(self, color):
+        for i in range(0, int(RhythmGame.window_width), 10):
+            pygame.draw.rect(self.screen, color, 
+                             pygame.Rect(i, RhythmGame.window_height//2 - 2, 4, 1))
+
     def render_notes(self):
         prev_note = None
         for note in self.red_notes:
@@ -280,6 +285,12 @@ class RhythmGame:
 
     def update_screen(self) -> None:
         self.screen.fill((255, 255, 255))  # black
+
+        if self.user_turn:
+            self.draw_dashed_line(pygame.Color(0, 200, 100))
+        else:
+            self.draw_dashed_line(pygame.Color(200, 0, 100))
+
         self.draw_circles()
         self.display_performance()
 
@@ -338,7 +349,7 @@ class RhythmGame:
         pygame.draw.rect(self.screen, color,
                         pygame.Rect(x, 
                         RhythmGame.window_height//2 - HI_LO_HEIGHT, 
-                        1, 2*HI_LO_HEIGHT))
+                        4, 2*HI_LO_HEIGHT+4))
 
 def main():
     game = RhythmGame()
