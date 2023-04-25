@@ -41,12 +41,5 @@ def remove_artifacts(filtered):
 
     return filtered
 
-def epoch_data(filtered, time_window=2):
-    # Epoch data into 2 second windows
-    events = mne.make_fixed_length_events(filtered, duration=time_window)
-    epochs = mne.Epochs(filtered, events, tmin=0, tmax=time_window, baseline=None, preload=True)
-
-    return epochs
-
 if __name__ == "__main__":
     raw_focus = load_data("OpenBCISession_steve_focus1/OpenBCI-RAW-2023-04-13_17-26-20.csv")

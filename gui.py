@@ -366,25 +366,10 @@ def main():
             elif event.type == pygame.KEYUP:
                 game.menu_screen = False
 
-    # create a random number generator
-    random.seed(time.time())
-
-
-    # recorder, trigger, receiver = testRecorded.init_stream(
-    #     bufsize=0.1, winsize=0.1)
-
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                # testRecorded.close_stream(trigger, recorder)
                 sys.exit()
-
-    #     filtered_data = testRecorded.filter_data(
-    #         receiver=receiver, seconds_sleep=0, padlen=2)
-    #     average_voltages = testRecorded.average_voltages(filtered_data)
-    #     # print("ave_volt:", average_voltages.mean())
-        # game.cursor.eeg_move(average_voltages.mean())
-        # game.cursor.move()
         game.update_screen()
         game.display()
 

@@ -27,7 +27,7 @@ class SNN(nn.Module):
     def forward(self, x):
         return self.net(x)
     
-def train_snn(snn, optimizer, loss_fn, num_epochs, train_loader, test_loader):
+def train_snn(snn, optimizer, loss_fn, num_epochs, train_loader, val_loader):
     # train network
     snn.net.train()
 
@@ -36,7 +36,7 @@ def train_snn(snn, optimizer, loss_fn, num_epochs, train_loader, test_loader):
                             optimizer=optimizer, criterion=loss_fn, time_var=False, device=snn.device)
 
         print(f"Epoch: {epoch}")
-        print(f"Test set accuracy: {test_accuracy(snn, test_loader, snn.net, snn.num_steps)*100:.3f}%\n")
+        print(f"Validation set accuracy: {test_accuracy(snn, val_loader, snn.net, snn.num_steps)*100:.3f}%\n")
     
     # save model
     torch.save(snn.state_dict(), "snn.pt")
