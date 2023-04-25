@@ -6,10 +6,11 @@ import torch
 import snntorch
 import snntorch.functional as SF
 from snntorch import surrogate
+import torch.nn as nn
 from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds, BrainFlowPresets
 from preprocessing import load_np_data, filter_eeg_data, compute_psd, compute_bands
 from dataset import EEGDataset
-from snn import SNN, fine_tune
+from snn import SNN, finetune_snn
 
 STREAM_NAME = 'OpenBCI_EEG'
 
@@ -66,29 +67,33 @@ def main():
     if args.calibrate:
         print("Calibrating input...")
 
-        # Initialize model with device
+        # Set device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = SNN(device)
 
-        # Load in pre-trained model parameters
-        model.load_state_dict(torch.load('snn.pt'))
-
-        # Set require grad to false
+        # Load in pre-trained model
+        model = SNN()
+        model.load_state_dict(torch.load("snn.pt"))
+        
+        # Set require grad to false for all layers
         for param in model.parameters():
             param.requires_grad = False
 
-        # Initialize new final layer of model
-        beta = 0.9,
+        # Re-initialize final layer of model for finetuning
+        num_hidden = 128
+        pop_outputs = 100
+        beta = 0.9
         grad = surrogate.fast_sigmoid()
-        model.fc = snntorch.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
+        model.output_layer = nn.Linear(num_hidden, pop_outputs)
+        model.output_leaky = snntorch.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
 
         # Define loss function and optimizer
         loss_fn = SF.mse_count_loss(correct_rate=1.0, incorrect_rate=0.0, population_code=True, num_classes=2)
-        optimizer = torch.optim.Adam(snntorch.net.parameters(), lr=1e-3, betas=(0.9, 0.999))
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
 
         # Initialize calibration dataset
         dataset = np.array([])
 
+        # Record high focus
         for i in range(3):
             input("Press enter to record high focus...")
             data = read_labeled_data(board, label=1)
@@ -101,6 +106,7 @@ def main():
 
         print("Done recording high focus!\n")
         
+        # Record low focus
         for i in range(3):
             input("Press enter to record low focus...")
             data = read_labeled_data(board, label=0)
@@ -110,22 +116,26 @@ def main():
         
         print("Done recording low focus!\n")
 
+        # Calibrate model
         print("Calibrating model...")
 
         # Create dataloader
         torch_data = torch.from_numpy(dataset).float()
         dataset = EEGDataset(torch_data, -1)
-        train_loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
 
-        # fine tune model
+        # Fine tune model
         num_epochs = 1
-        fine_tune(model, device, optimizer, loss_fn, num_epochs, train_loader)
+        finetune_snn(model, device, optimizer, loss_fn, num_epochs, train_loader)
 
-        print("Run the script again to re-calibrate.")
-
+        print("Calibration complete! Run the script again to re-calibrate.")
         
     else:
         print("Reading input...")
+
+        # Load in pre-trained model
+        model = SNN()
+        model.load_state_dict(torch.load("snn.pt"))
 
         while True:
             print("Press Ctrl+C to stop.")
@@ -134,6 +144,12 @@ def main():
                 # read data
                 data = read_unlabeled_data(board)
                 print(data)
+
+                # predict
+                torch_data = torch.from_numpy(data).float()
+                spk_rec, mem_rec = model(torch_data)
+                print(spk_rec)
+                print(torch.zeros(tuple([spk_rec.unsqueeze(0).size(1)] + [2])))
             except KeyboardInterrupt:
                 break
 

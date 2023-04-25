@@ -1,12 +1,13 @@
 import torch
-import snntorch as snn
+import snntorch
 import torch.nn as nn
 from snntorch import surrogate, utils, backprop
 import snntorch.functional as SF
 
 class SNN(nn.Module):
-    def __init__(self, num_inputs=5, num_hidden=128, num_outputs=2, num_steps=2, beta=0.9,
-               grad=surrogate.fast_sigmoid(), pop_outputs=100):
+    def __init__(self, num_inputs=5, num_hidden=128, num_outputs=2, 
+                 num_steps=2, alpha=0.9, beta=0.9, 
+                 grad=surrogate.fast_sigmoid(), pop_outputs=100):
         super(SNN, self).__init__()
         self.num_inputs = num_inputs
         self.num_hidden = num_hidden
@@ -24,18 +25,19 @@ class SNN(nn.Module):
         #             ).to(device)
 
         self.flatten = nn.Flatten()
-        self.layer1 = nn.Linear(num_inputs, num_hidden)
-        self.layer2 = snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True)
-        self.layer3 = nn.Linear(num_hidden, pop_outputs)
-        self.fc = snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
+        self.input_layer = nn.Linear(num_inputs, num_hidden)
+        self.input_leaky = snntorch.Synaptic(alpha=alpha, beta=beta, spike_grad=grad, init_hidden=True)
+        self.output_layer = nn.Linear(num_hidden, pop_outputs)
+        self.output_leaky = snntorch.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
 
     def forward(self, x):
         # return self.net(x)
-        x = self.flatten(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.fc(x)
+        if x.dim() != 1:
+          x = self.flatten(x)
+        x = self.input_layer(x)
+        x = self.input_leaky(x)
+        x = self.output_layer(x)
+        x = self.output_leaky(x)
 
         return x
     
@@ -58,7 +60,7 @@ def train_snn(snn, device, optimizer, loss_fn, num_epochs, train_loader, val_loa
 
     return avg_loss
 
-def test_accuracy(snn, device, data_loader, population_code=False, num_classes=False):
+def test_accuracy(snn, device, data_loader, population_code=True):
   # send model to device
   snn.to(device)
 
@@ -75,7 +77,7 @@ def test_accuracy(snn, device, data_loader, population_code=False, num_classes=F
       spk_rec, _ = snn(data)
 
       if population_code:
-        acc += SF.accuracy_rate(spk_rec.unsqueeze(0), targets, population_code=True, num_classes=10) * spk_rec.size(1)
+        acc += SF.accuracy_rate(spk_rec.unsqueeze(0), targets, population_code=True, num_classes=2) * spk_rec.size(1)
       else:
         acc += SF.accuracy_rate(spk_rec.unsqueeze(0), targets) * spk_rec.size(1)
 
@@ -83,7 +85,7 @@ def test_accuracy(snn, device, data_loader, population_code=False, num_classes=F
 
   return acc/total
 
-def fine_tune(snn, device, optimizer, loss_fn, num_epochs, train_loader):
+def finetune_snn(snn, device, optimizer, loss_fn, num_epochs, train_loader):
     # send model to device
     snn.to(device)
     
@@ -97,6 +99,6 @@ def fine_tune(snn, device, optimizer, loss_fn, num_epochs, train_loader):
         print(f"Epoch: {epoch}")
     
     # save model
-    torch.save(snn.state_dict(), "snn.pt")
+    torch.save(snn.state_dict(), "snn_finetune.pt")
 
     return avg_loss
