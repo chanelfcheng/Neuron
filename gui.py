@@ -99,6 +99,7 @@ class RhythmGame:
         self.user_turn = False
 
         self.level = 0
+        self.time_gap = 1.0
         self.red_note_counter = 0
         self.green_note_counter = 0
         self.correct_note_counter = 0
@@ -213,7 +214,7 @@ class RhythmGame:
             else:
                 if len(self.green_notes) == 0:
                     self.correct = None
-                    if self.correct_note_counter / RhythmGame.num_notes[self.level] >= 0.70:
+                    if self.correct_note_counter / RhythmGame.num_notes[self.level] >= 0.7:
                         text = pygame.freetype.Font("fonts/pixel.ttf", 50)
                         text.render_to(RhythmGame.screen, 
                                        (RhythmGame.window_width//2, RhythmGame.window_height//2), 
@@ -230,8 +231,16 @@ class RhythmGame:
                     key = pygame.key.get_pressed()
                 
                     if key[pygame.K_UP]:
-                        if self.correct_note_counter / RhythmGame.num_notes[self.level] >= 0.70:
-                            self.level += 1 if self.level <= 2 else 0
+                        if self.correct_note_counter / RhythmGame.num_notes[self.level] >= 0.7:
+                            if self.time_gap > 0.8:
+                                self.time_gap -= 0.1
+                            
+                            else:
+                                if self.level <= 2:
+                                    print("Next level")
+                                    self.level += 1
+                                    self.time_gap = 1.0
+                            # self.level += 1 if self.level <= 2 and self.time_gap <= 0.5 else 0
                         self.correct_note_counter = 0
                         self.user_turn = False
                         self.green_note_counter = 0
@@ -294,7 +303,7 @@ class RhythmGame:
         self.draw_circles()
         self.display_performance()
 
-        if (time.time() - self.start_time > 1):
+        if time.time() - self.start_time > self.time_gap:
             self.move_notes()
             self.add_notes()
 
