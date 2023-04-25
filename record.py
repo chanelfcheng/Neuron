@@ -3,9 +3,13 @@ import time
 import numpy as np
 import pandas as pd
 import torch
+import snntorch
+import snntorch.functional as SF
+from snntorch import surrogate
 from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds, BrainFlowPresets
 from preprocessing import load_np_data, filter_eeg_data, compute_psd, compute_bands
-from snn import SNN
+from dataset import EEGDataset
+from snn import SNN, fine_tune
 
 STREAM_NAME = 'OpenBCI_EEG'
 
@@ -74,13 +78,19 @@ def main():
             param.requires_grad = False
 
         # Initialize new final layer of model
-        model.fc = torch.nn.Linear(5, 1)
+        beta = 0.9,
+        grad = surrogate.fast_sigmoid()
+        model.fc = snntorch.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
+
+        # Define loss function and optimizer
+        loss_fn = SF.mse_count_loss(correct_rate=1.0, incorrect_rate=0.0, population_code=True, num_classes=2)
+        optimizer = torch.optim.Adam(snntorch.net.parameters(), lr=1e-3, betas=(0.9, 0.999))
 
         # Initialize calibration dataset
         dataset = np.array([])
 
         for i in range(3):
-            input("Press enter to calibrate high focus...")
+            input("Press enter to record high focus...")
             data = read_labeled_data(board, label=1)
             print(data)
 
@@ -89,16 +99,27 @@ def main():
             else:
                 dataset = np.vstack((dataset, data))
 
-        print("Done calibrating high focus!\n")
+        print("Done recording high focus!\n")
         
         for i in range(3):
-            input("Press enter to calibrate low focus...")
+            input("Press enter to record low focus...")
             data = read_labeled_data(board, label=0)
             print(data)
             
             dataset = np.vstack((dataset, data))
         
-        print("Done calibrating low focus!\n")
+        print("Done recording low focus!\n")
+
+        print("Calibrating model...")
+
+        # Create dataloader
+        torch_data = torch.from_numpy(dataset).float()
+        dataset = EEGDataset(torch_data, -1)
+        train_loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
+
+        # fine tune model
+        num_epochs = 1
+        fine_tune(model, device, optimizer, loss_fn, num_epochs, train_loader)
 
         print("Run the script again to re-calibrate.")
 
