@@ -1,13 +1,20 @@
 import mne
 import numpy as np
 import pandas as pd
+import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split, KFold
 
 class EEGDataset(Dataset):
     def __init__(self, data, target_col):
-        self.data = data.drop(columns=[target_col]).to_numpy(dtype=np.float32)
-        self.targets = data[target_col].to_numpy(dtype=np.int64)
+        if isinstance(data, pd.DataFrame):
+            self.data = data.drop(columns=[target_col]).to_numpy(dtype=np.float32)
+            self.targets = data[target_col].to_numpy(dtype=np.int64)
+        elif isinstance(data, torch.Tensor):
+            self.data = data[:, :-1]
+            self.targets = data[:, -1]
+        else:
+            raise TypeError("Data must be a pandas dataframe or a torch tensor")
 
     def __getitem__(self, index):
         x = self.data[index]
