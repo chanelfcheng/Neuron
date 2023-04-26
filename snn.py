@@ -38,7 +38,7 @@ class SNN(nn.Module):
         self.layer1 = LIFRecurrentCell(
             num_inputs,
             num_hidden,
-            p=LIFParameters(alpha=100, v_th=torch.tensor(0.5)),
+            p=LIFParameters(alpha=50, v_th=torch.tensor(0.5)),
             dt=dt,
         )
 
@@ -46,7 +46,7 @@ class SNN(nn.Module):
         self.output_leaky = LICell(dt=dt)
 
     def forward(self, x):
-        seq_length, batch_size, _ = x.shape
+        seq_length, batch_size = x.shape[0], x.shape[1]
         s1 = so = None
         voltages = []
 
