@@ -14,9 +14,7 @@ class EEGDataset(Dataset):
             self.data = data[:, :-1]
             self.targets = data[:, -1]
         else:
-            print("Must pass in either dataframe or tensor")
-            self.data = None
-            self.targets = None
+            raise TypeError("Data must be a pandas dataframe or a torch tensor")
 
     def __getitem__(self, index):
         x = self.data[index]

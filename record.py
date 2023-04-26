@@ -3,6 +3,7 @@ import time
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 import snntorch
 import snntorch.functional as SF
 from snntorch import surrogate
@@ -70,16 +71,16 @@ def main():
         # Set device
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        # Load in pre-trained model
+        # Load in pre-traind model
         model = SNN()
-        model.load_state_dict(torch.load("snn.pt"))
-        
-        # Set require grad to false for all layers
+        model.load_state_dict(torch.load('snn.pt'))
+
+        # Set require grad to false
         for param in model.parameters():
             param.requires_grad = False
 
-        # Re-initialize final layer of model for finetuning
-        num_hidden = 128
+        # Initialize new final layer of model
+        num_hidden = 100
         pop_outputs = 100
         beta = 0.9
         grad = surrogate.fast_sigmoid()
@@ -93,7 +94,7 @@ def main():
         # Initialize calibration dataset
         dataset = np.array([])
 
-        # Record high focus
+        # Record the data
         for i in range(3):
             input("Press enter to record high focus...")
             data = read_labeled_data(board, label=1)
@@ -116,7 +117,7 @@ def main():
         
         print("Done recording low focus!\n")
 
-        # Calibrate model
+        # Calibrate the model
         print("Calibrating model...")
 
         # Create dataloader
@@ -129,13 +130,15 @@ def main():
         finetune_snn(model, device, optimizer, loss_fn, num_epochs, train_loader)
 
         print("Calibration complete! Run the script again to re-calibrate.")
+
         
     else:
         print("Reading input...")
 
-        # Load in pre-trained model
+        # Load in pre-traind model
         model = SNN()
-        model.load_state_dict(torch.load("snn.pt"))
+        model.load_state_dict(torch.load('snn.pt'))
+        model.eval()
 
         while True:
             print("Press Ctrl+C to stop.")
@@ -147,9 +150,8 @@ def main():
 
                 # predict
                 torch_data = torch.from_numpy(data).float()
-                spk_rec, mem_rec = model(torch_data)
-                print(spk_rec)
-                print(torch.zeros(tuple([spk_rec.unsqueeze(0).size(1)] + [2])))
+                spk_rec, _ = model(torch_data)
+                print(spk_rec.shape)
             except KeyboardInterrupt:
                 break
 

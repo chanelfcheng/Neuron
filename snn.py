@@ -6,8 +6,8 @@ import snntorch.functional as SF
 
 class SNN(nn.Module):
     def __init__(self, num_inputs=5, num_hidden=128, num_outputs=2, 
-                 num_steps=2, alpha=0.9, beta=0.9, 
-                 grad=surrogate.fast_sigmoid(), pop_outputs=100):
+                  num_steps=2, alpha=0.9, beta=0.9,
+                  grad=surrogate.fast_sigmoid(), pop_outputs=100):
         super(SNN, self).__init__()
         self.num_inputs = num_inputs
         self.num_hidden = num_hidden
@@ -25,19 +25,19 @@ class SNN(nn.Module):
         #             ).to(device)
 
         self.flatten = nn.Flatten()
-        self.input_layer = nn.Linear(num_inputs, num_hidden)
-        self.input_leaky = snntorch.Synaptic(alpha=alpha, beta=beta, spike_grad=grad, init_hidden=True)
-        self.output_layer = nn.Linear(num_hidden, pop_outputs)
-        self.output_leaky = snntorch.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
+        self.layer1 = nn.Linear(num_inputs, num_hidden)
+        self.layer2 = snn.Synaptic(alpha=alpha, beta=beta, spike_grad=grad, init_hidden=True)
+        self.layer3 = nn.Linear(num_hidden, pop_outputs)
+        self.fc = snn.Leaky(beta=beta, spike_grad=grad, init_hidden=True, output=True)
 
     def forward(self, x):
         # return self.net(x)
         if x.dim() != 1:
           x = self.flatten(x)
-        x = self.input_layer(x)
-        x = self.input_leaky(x)
-        x = self.output_layer(x)
-        x = self.output_leaky(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.fc(x)
 
         return x
     
