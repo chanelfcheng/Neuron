@@ -1,5 +1,5 @@
 import torch
-import snntorch
+import snntorch as snn
 import torch.nn as nn
 from snntorch import surrogate, utils, backprop
 import snntorch.functional as SF
@@ -60,7 +60,7 @@ def train_snn(snn, device, optimizer, loss_fn, num_epochs, train_loader, val_loa
 
     return avg_loss
 
-def test_accuracy(snn, device, data_loader, population_code=True):
+def test_accuracy(snn, device, data_loader, population_code=False, num_classes=False):
   # send model to device
   snn.to(device)
 
@@ -77,7 +77,7 @@ def test_accuracy(snn, device, data_loader, population_code=True):
       spk_rec, _ = snn(data)
 
       if population_code:
-        acc += SF.accuracy_rate(spk_rec.unsqueeze(0), targets, population_code=True, num_classes=2) * spk_rec.size(1)
+        acc += SF.accuracy_rate(spk_rec.unsqueeze(0), targets, population_code=True, num_classes=10) * spk_rec.size(1)
       else:
         acc += SF.accuracy_rate(spk_rec.unsqueeze(0), targets) * spk_rec.size(1)
 

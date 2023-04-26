@@ -7,7 +7,6 @@ import torch.nn as nn
 import snntorch
 import snntorch.functional as SF
 from snntorch import surrogate
-import torch.nn as nn
 from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds, BrainFlowPresets
 from preprocessing import load_np_data, filter_eeg_data, compute_psd, compute_bands
 from dataset import EEGDataset
@@ -89,7 +88,7 @@ def main():
 
         # Define loss function and optimizer
         loss_fn = SF.mse_count_loss(correct_rate=1.0, incorrect_rate=0.0, population_code=True, num_classes=2)
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
+        optimizer = torch.optim.Adam(snntorch.net.parameters(), lr=1e-3, betas=(0.9, 0.999))
 
         # Initialize calibration dataset
         dataset = np.array([])
@@ -107,7 +106,6 @@ def main():
 
         print("Done recording high focus!\n")
         
-        # Record low focus
         for i in range(3):
             input("Press enter to record low focus...")
             data = read_labeled_data(board, label=0)
@@ -123,9 +121,9 @@ def main():
         # Create dataloader
         torch_data = torch.from_numpy(dataset).float()
         dataset = EEGDataset(torch_data, -1)
-        train_loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
 
-        # Fine tune model
+        # fine tune model
         num_epochs = 1
         finetune_snn(model, device, optimizer, loss_fn, num_epochs, train_loader)
 
