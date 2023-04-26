@@ -31,7 +31,7 @@ def epoch_data(filtered, time_window=0.5, overlap=0):
 
     return epochs
 
-def k_fold_validation_split(df, k_folds=2):
+def k_fold_validation_split(df, batch_size=32, k_folds=2):
     n = len(df)
     k_folds = 2
     fold_size = n // k_folds
@@ -61,7 +61,7 @@ def k_fold_validation_split(df, k_folds=2):
     val_loaders = []
 
     for i in range(k_folds):
-        train_loaders += [DataLoader(train_datasets[i], batch_size=2, shuffle=False)]
-        val_loaders += [DataLoader(val_datasets[i], batch_size=2, shuffle=False)]
+        train_loaders += [DataLoader(train_datasets[i], batch_size=batch_size, shuffle=True)]
+        val_loaders += [DataLoader(val_datasets[i], batch_size=batch_size, shuffle=True)]
 
     return train_loaders, val_loaders

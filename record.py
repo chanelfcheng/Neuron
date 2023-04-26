@@ -10,7 +10,7 @@ from snntorch import surrogate
 from brainflow.board_shim import BoardShim, BrainFlowInputParams, BoardIds, BrainFlowPresets
 from preprocessing import load_np_data, filter_eeg_data, compute_psd, compute_bands
 from dataset import EEGDataset
-from snn import SNN, finetune_snn
+from snn import SNN, finetune_model
 
 STREAM_NAME = 'OpenBCI_EEG'
 
@@ -125,7 +125,7 @@ def main():
 
         # fine tune model
         num_epochs = 1
-        finetune_snn(model, device, optimizer, loss_fn, num_epochs, train_loader)
+        finetune_model(model, device, optimizer, loss_fn, num_epochs, train_loader)
 
         print("Calibration complete! Run the script again to re-calibrate.")
 
