@@ -1,0 +1,17 @@
+# Ignore .pt files everywhere
+*.pt
+
+# Ignore __pycache__ directory
+__pycache__/
+
+# Ignore .vscode directory
+.vscode/
+
+# Ignore all .DS_Store files in all directories and subdirectories
+.DS_Store
+*/.DS_Store
+
+# Ignore all .csv and .txt data files
+data/*/*.csv
+data/*/*.txt
+

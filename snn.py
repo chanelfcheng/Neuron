@@ -26,7 +26,7 @@ class SNNState(NamedTuple):
 
 class SNN(nn.Module):
     def __init__(
-        self, num_inputs=8, num_hidden=64, num_outputs=2, record=False, dt=0.001
+        self, num_inputs=4, num_hidden=100, num_outputs=2, record=False, dt=0.001
     ):
         super(SNN, self).__init__()
         self.num_inputs = num_inputs
@@ -38,11 +38,12 @@ class SNN(nn.Module):
         self.layer1 = LIFRecurrentCell(
             num_inputs,
             num_hidden,
-            p=LIFParameters(alpha=50, v_th=torch.tensor(0.5)),
-            dt=dt,
+            p=LIFParameters(alpha=torch.as_tensor(0.0001), v_th=torch.as_tensor(0.5), v_leak=torch.as_tensor(0.25), v_reset=torch.as_tensor(0.0)),
+            dt=dt
         )
 
-        self.output_layer = nn.Linear(num_hidden, num_outputs, bias=False)
+        self.act = nn.ReLU()
+        self.output_layer = nn.Linear(num_hidden, num_outputs)
         self.output_leaky = LICell(dt=dt)
 
     def forward(self, x):
@@ -66,6 +67,7 @@ class SNN(nn.Module):
         for t in range(seq_length):
             z = x[t, :, :].view(-1, self.num_inputs)
             z, s1 = self.layer1(z, s1)
+            z = self.act(z)
             z = self.output_layer(z)
             vo, so = self.output_leaky(z, so)
 
@@ -106,7 +108,7 @@ class SpikingModel(nn.Module):
         return log_p_y
     
     
-def train_model(model, device, optimizer, loss_fn, num_epochs, train_loader, val_loader):
+def train_model(model, device, optimizer, scheduler, loss_fn, num_epochs, train_loader, val_loader):
     # send model to device
     model.to(device)
 
@@ -115,6 +117,8 @@ def train_model(model, device, optimizer, loss_fn, num_epochs, train_loader, val
 
     # initialize losses
     losses = []
+    train_losses = []
+    val_losses = []
 
     # train model
     for epoch in range(num_epochs):
@@ -126,18 +130,20 @@ def train_model(model, device, optimizer, loss_fn, num_epochs, train_loader, val
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
+        scheduler.step(metrics=loss)
 
         mean_loss = np.mean(losses)
+        train_losses.append(mean_loss)
         print(f"Train epoch {epoch+1}/{num_epochs} loss: {mean_loss:.4f}")
 
         # evaluate model
-        test_model(model, device, val_loader)
+        val_loss, _ = test_model(model, device, loss_fn, val_loader)
+        val_losses.append(val_loss)
 
-    # save model
-    torch.save(model.state_dict(), "snn.pt")
+    return model, train_losses, val_losses
 
 
-def test_model(model, device, test_loader):
+def test_model(model, device, loss_fn, test_loader):
     # send model to device
     model.to(device)
 
@@ -152,8 +158,8 @@ def test_model(model, device, test_loader):
         for (data, target) in tqdm(test_loader):
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += nn.functional.nll_loss(
-                output, target, reduction="sum"
+            test_loss += loss_fn(
+                output, target
             ).item()
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()

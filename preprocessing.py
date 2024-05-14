@@ -1,16 +1,24 @@
+import glob
 import mne
 import numpy as np
 import pandas as pd
 
-def load_file_data(filename):
-    df = pd.read_csv(filename, delimiter=",")
-    df = df.drop(df.index[0])   # Drop the first row
-    df = df.drop(columns=['Sample Index'])   # Drop the first col
-    df = df.drop(columns=df.columns[8:])  # Drop cols 8 and after
+def load_file_data(filenames):
+    all_data = pd.DataFrame([])
+    df = pd.DataFrame([])
+
+    for filename in filenames:
+        filename = glob.glob(filename)[0]
+        df = pd.read_csv(filename, delimiter="\t")
+        df = df.drop(df.index[0])   # Drop the first row
+        df = df.drop(columns=df.columns[0])   # Drop the first col
+        df = df.drop(columns=df.columns[8:])  # Drop cols 8 and after
+        # concatenate all data into one dataframe
+        all_data = pd.concat([all_data, df], ignore_index=True)
 
     # Channel names for OpenBCI Mark IV EEG headset (8 channels)
-    ch_names = ["Fp1", "Fp2", "C3", "C4", "P3", "P4", "O1", "O2"]
-    raw = mne.io.RawArray(df.values.transpose(), mne.create_info(ch_names, 250, ch_types="eeg"))
+    ch_names = ["F3", "F4", "P3", "P4", "H-", "H+", "V-", "V+"]
+    raw = mne.io.RawArray(all_data.values.transpose(), mne.create_info(ch_names, 250, ch_types=["eeg"]*4+["eog"]*4))
     raw._data*=1e-6 # Convert from microvolts to volts
 
     # Set montage
@@ -22,8 +30,12 @@ def load_file_data(filename):
 def load_np_data(np_array):
     np_array = np_array[:8, :]
     print(np_array.shape)
-    ch_names = ["Fp1", "Fp2", "C3", "C4", "P3", "P4", "O1", "O2"]
-    raw = mne.io.RawArray(np_array, mne.create_info(ch_names, 250, ch_types="eeg"))
+    ch_names = ["F3", "F4", "P3", "P4", "H-", "H+", "V-", "V+"]
+    raw = mne.io.RawArray(np_array, mne.create_info(ch_names, 250, ch_types=["eeg"]*4+["eog"]*4))
+    raw._data*=1e-6 # Convert from microvolts to volts
+
+    montage = mne.channels.make_standard_montage("standard_1020")
+    raw.set_montage(montage)
 
     return raw
 
@@ -35,6 +47,13 @@ def filter_eeg_data(raw):
     filtered = filtered.copy().filter(1, 50, fir_design="firwin")
 
     return filtered
+
+def epoch_data(filtered, time_window=0.5, overlap=0):
+    # Epoch data into 2 second windows
+    events = mne.make_fixed_length_events(filtered, duration=time_window, overlap=overlap)
+    epochs = mne.Epochs(filtered, events, tmin=0, tmax=time_window, baseline=None, preload=True)
+
+    return epochs
 
 def compute_psd(filtered):
     # Compute PSD
@@ -52,7 +71,7 @@ def compute_bands(psd):
 
     return delta, theta, alpha, beta, gamma
 
-def remove_artifacts(filtered, pov=0.9):
+def remove_artifacts(filtered, pov=0.95):
     # Apply ICA to remove artifacts
     ica = mne.preprocessing.ICA(n_components=pov)#, random_state=97)
     ica.fit(filtered);
